@@ -1,0 +1,16 @@
+#cloud-config
+
+# set the hostname
+fqdn: ${vmname}.domain.local
+
+# avoid configuring swap using mounts
+mounts:
+  - [swap, null]
+
+#cloud-config
+users:
+  - name: user1
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh-authorized-keys:
+      - my_pub_key

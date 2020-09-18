@@ -1,0 +1,6 @@
+**/*.log
+**/*.tfvars
+**/*.tfstate*
+**/*.terraform
+**/.DS_Store
+**/cloud-init.tpl

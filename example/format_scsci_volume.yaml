@@ -1,0 +1,73 @@
+---
+- hosts: localhost
+  tasks:
+    - name: "Waiting for SSH on {{target_host}}"
+      wait_for:
+        port: 22
+        host: "{{target_host}}"
+        search_regex: OpenSSH
+        delay: 2
+        timeout: 60
+      connection: local
+- hosts: "{{target_host}}"
+  vars:
+    ansible_become: true
+  tasks:
+    - name: CentOS - install iscsi-initiator-utils
+      yum:
+        name: iscsi-initiator-utils
+        state: installed
+      when: ansible_os_family == 'RedHat'
+    - name: Ubuntu - install open-iscsi
+      apt:
+        pkg:
+          - open-iscsi
+      when: ansible_os_family == 'Debian'
+    - name: Discover targets on portal
+      open_iscsi:
+        portal: "{{ iscsi_target }}"
+        discover: yes
+        node_auth: none
+        show_nodes: yes
+      register: nodes
+    - name: "Attach node {{ item }}"
+      open_iscsi:
+        portal: "{{ iscsi_target }}"
+        login: yes
+        discover: yes
+        node_auth: none
+        target: "{{ item }}"
+      loop: "{{ nodes.nodes }}"
+    - name: Create a new primary partition
+      parted:
+        device: "{{item['device']}}"
+        number: 1
+        state: present
+      loop: "{{ disk_mapping }}"
+      loop_control:
+        label: "{{ item['device']}}"
+    - name: Create a ext4 filesystem and check disk blocks
+      filesystem:
+        fstype: ext4
+        dev: "{{item['device']}}1"
+      loop: "{{ disk_mapping }}"
+      loop_control:
+        label: "{{ item['device']}}"
+    - name: Create mount directory
+      file:
+        path: "{{item['mount_path']}}"
+        state: directory
+        mode: "0755"
+      loop: "{{ disk_mapping }}"
+      loop_control:
+        label: "{{ item['device']}}"
+    - name: Mount
+      mount:
+        path: "{{item['mount_path']}}"
+        src: "{{item['device']}}1"
+        fstype: ext4
+        state: mounted
+        opts: defaults,nofail
+      loop: "{{ disk_mapping }}"
+      loop_control:
+        label: "{{ item['device']}}"
